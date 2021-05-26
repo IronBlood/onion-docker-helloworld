@@ -1,0 +1,30 @@
+# This dockerfile is for building your own docker image with libonion.
+# Put it at the root directory of your clone of https://github.com/davidmoreno/onion
+# and rename it to Dockerfile, then you may build an image like:
+# docker build --rm -t onion-runtime .
+
+# You may also want to change the base image from alpine to whatever linux
+# distro you prefer
+FROM alpine AS compile
+
+WORKDIR /root
+
+# Pay attention to the working directory where you're executing "docker build"
+# This is to copy all the onion source files to the container
+COPY . .
+
+# Uncomment this line if you're in China to speed up installing dependencies
+# RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.ustc.edu.cn/g' /etc/apk/repositories
+
+# This is gonna install the minimum dependencies such as SSL, session, etc.
+# please checkout the documentations from onion and alpine or the linux distro you use
+RUN apk add cmake make alpine-sdk
+
+RUN (rm -rf build; mkdir build; cd build; cmake ..; make -C src/onion; make install -C src/onion)
+
+RUN (cd /usr/local/lib/; tar zcf /root/libonion.tar.gz libonion*)
+
+FROM alpine
+COPY --from=compile /usr/local/include/onion/ /usr/local/include/onion/
+COPY --from=compile /root/libonion.tar.gz /root
+RUN (cd /usr/local/lib/; tar xf /root/libonion.tar.gz; rm /root/libonion.tar.gz)
